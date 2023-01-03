@@ -61,12 +61,22 @@ class UserDatabase:
         #Add code to validate input
         for i in ['id','from','subject','date','body','html']:
             if i in data:
+                data[i] = str(data[i])
                 if i == "from":
-                    
-                    email = re.findall('\S+@\S+', data['from'])
-                    email[0] = email[0][1:-1]
-                    regex = "\<(.+?)\>"
-                    name = re.sub(regex, "", data['from'])
+                    try:
+                        
+                        email = re.findall('\S+@\S+', data['from'])
+                        email[0] = email[0][1:-1]
+                    except:
+                        email = []
+                        email.append("")
+                        
+                    try:
+                        regex = "\<(.+?)\>"
+                        name = re.sub(regex, "", data['from'])
+                    except:
+                        name = ""
+                        
                 continue
             else:
                 data[i] = None
@@ -90,6 +100,7 @@ class UserDatabase:
 
         except sqlite3.Error as error:
             print("Failed to insert Python variable into sqlite table", error)
+            
 
 
     

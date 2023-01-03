@@ -9,6 +9,8 @@ import html2text
 from datetime import datetime
 import re
 from tqdm import tqdm
+import sqlite3
+from sqlite3 import Error
 
 class ApplicationTracker:
 
@@ -91,7 +93,7 @@ class ApplicationTracker:
         ## Get Checkpoint
 
         try:
-            checkpoint = self.DB.curr.execute('SELECT id FROM MAILBOX').fetchall()
+            checkpoint = self.DB.curr.execute('SELECT mailbox_id FROM MAILBOX').fetchall()
         except:
             checkpoint = []
 
@@ -106,10 +108,15 @@ class ApplicationTracker:
         ##check if the current id is in checkpoint
         print("Old emails:",curr)
         print("New emails:", len(search_data) - curr)
-        
+        #search_data = list(set(search_data) - set(checkpoint))
+        #search_data = [i for i in search_data if i not in checkpoint]
+        sqlite_select_query = """SELECT mailbox_id from MAILBOX where mailbox_id = ?"""
+        print(search_data[:10])
         for i in tqdm(range(0,len(search_data))):
             id = search_data[i]
-            if id not in self.DB.curr.execute('SELECT mailbox_id FROM MAILBOX').fetchall():
+            
+
+            if len(self.DB.curr.execute(sqlite_select_query,(id,)).fetchall()) == 0:
                 email = self.read_email(id)
                 email = self.preprocess_email(email)
                 
@@ -128,7 +135,12 @@ class ApplicationTracker:
 def main():
     print("Welcome..")
     mail = ApplicationTracker()
-    mail.check_new_email()
+    try:
+        mail.check_new_email()
+    except Error as e:
+        print(e)
+        mail.DB.curr.close()
+        mail.DB.conn.close()
 
 if __name__ == "__main__":
     main()
