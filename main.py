@@ -1,4 +1,5 @@
 import utils
+import database
 import imaplib
 import email
 import os
@@ -7,6 +8,7 @@ import tempfile
 import html2text
 from datetime import datetime
 import re
+from tqdm import tqdm
 
 class ApplicationTracker:
 
@@ -27,6 +29,9 @@ class ApplicationTracker:
         else:
             print("Login Failed")
             self.__init__()
+
+        self.DB = database.UserDatabase()
+
 
     def login(self):
 
@@ -55,13 +60,13 @@ class ApplicationTracker:
             email_data[header] =  email_message[header]
         
         for part in email_message.walk():
-            print(part.get_content_type())
+            #print(part.get_content_type())
             if part.get_content_type() == "text/plain":
                 body = part.get_payload(decode=True)
                 email_data['body'] = body
             elif part.get_content_type() == "text/html":
                 html_body = part.get_payload(decode=True)
-                email_data['html_body'] = html_body
+                email_data['html'] = html_body
         
         return email_data
 
@@ -76,14 +81,21 @@ class ApplicationTracker:
         if "body" in email_data:
             email_data['body'] = utils.clean_body(email_data['body'])
         if "html_body" in email_data:
-            email_data['html_body'] = utils.clean_body(email_data['html_body'])
+            email_data['html'] = utils.clean_body(email_data['html'])
         
         return email_data
 
     def check_new_email(self):
         _, search_data = self.m.search(None, 'ALL')
-        checkpoint = utils.load_json("checkpoint.txt")
-        print(checkpoint)
+
+        ## Get Checkpoint
+
+        try:
+            checkpoint = self.DB.curr.execute('SELECT id FROM MAILBOX').fetchall()
+        except:
+            checkpoint = []
+
+
         search_data = search_data[0].decode().split()[::-1] 
         
         if checkpoint == None:
@@ -95,18 +107,31 @@ class ApplicationTracker:
         print("Old emails:",curr)
         print("New emails:", len(search_data) - curr)
         
-        for i in search_data:
-            if i not in checkpoint:
-                email = self.read_email(i)
+        for i in tqdm(range(0,len(search_data))):
+            id = search_data[i]
+            if id not in self.DB.curr.execute('SELECT mailbox_id FROM MAILBOX').fetchall():
+                email = self.read_email(id)
                 email = self.preprocess_email(email)
                 
                 
                 #update checkpoint and emails
+
+                self.DB.update_mailbox(email)
                 #return email
-                utils.update_json(email, "emails.txt")
-                checkpoint.append(i)
-                utils.update_json(i,"checkpoint.txt")
-                print(email['id'], email['date'])
+                #utils.update_json(email, "emails.txt")
+                #checkpoint.append(i)
+                #utils.update_json(i,"checkpoint.txt")
+                #print(email['id'], email['date'])
+
+    
+
+def main():
+    print("Welcome..")
+    mail = ApplicationTracker()
+    mail.check_new_email()
+
+if __name__ == "__main__":
+    main()
     
 
             
